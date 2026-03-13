@@ -1212,23 +1212,14 @@ SHIPPING
 ════════════════════════════════════════ */
 async function callDeepl(text) {
   if (!text?.trim()) return '';
-  // DeepL Free APIは api-free.deepl.com、有料は api.deepl.com
-  const host = DEEPL_KEY.endsWith(':fx') ? 'api-free.deepl.com' : 'api.deepl.com';
-  const res = await fetch(`https://${host}/v2/translate`, {
+  const res = await fetch('/api/deepl', {
     method: 'POST',
-    headers: {
-      'Authorization': `DeepL-Auth-Key ${DEEPL_KEY}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      text: [text],
-      source_lang: 'JA',
-      target_lang: 'EN-US'
-    })
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text })
   });
   if (!res.ok) throw new Error(`DeepL error ${res.status}`);
   const json = await res.json();
-  return json.translations?.[0]?.text || '';
+  return json.translated || '';
 }
 
 async function callClaude(it, deeplDetail, deeplAppeal) {
@@ -1256,22 +1247,20 @@ TITLE: [title here]
 DESC:
 [description here]`;
 
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
+   const res = await fetch('/api/claude', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514', max_tokens: 1000,
-      messages: [{ role: 'user', content: prompt }]
+      title: it.title,
+      condition: COND_EN[it.condition],
+      detailText, appealText, hasDeepL
     })
   });
   if (!res.ok) throw new Error(`Claude API error ${res.status}`);
   const json = await res.json();
-  const text = json.content[0].text;
-  const tm = text.match(/TITLE:\s*(.+)/);
-  const dm = text.match(/DESC:\n([\s\S]+)/);
   return {
-    title: (tm?.[1] || it.title).slice(0, 80).trim(),
-    desc: dm?.[1]?.trim() || text
+    title: (json.title || it.title).slice(0, 80).trim(),
+    desc: json.desc || ''
   };
 }
 
