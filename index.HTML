@@ -529,8 +529,10 @@ body{
       <input class="fi" type="text" id="inImg" placeholder="imgur.com/account/settings/apps で無料取得">
     </div>
     <div class="fl">
-      <label>USD/JPY レート</label>
+     <label>USD/JPY レート（自動取得）</label>
       <input class="fi" type="number" id="inRate" placeholder="150" value="150">
+
+
     </div>
     <div class="modal-ft">
       <button class="btn btn-ghost btn-sm" onclick="closeModal(false)">キャンセル</button>
@@ -827,8 +829,8 @@ function renderItem(item) {
             </select>
           </div>
           <div class="fl">
-            <label>即決価格（USD）</label>
-            <input class="fi" type="number" placeholder="89.00"
+            <label>即決価格（円）</label>
+            <input class="fi" type="number" placeholder="13500"
               value="${item.price||''}" oninput="setField(${item.id},'price',this.value);calcProfit(${item.id})">
           </div>
           <div class="fl">
@@ -1019,9 +1021,9 @@ function calcProfit(id) {
     return;
   }
 
-  const grossJPY = sell * rate;
-  const ebayAmt  = sell * 0.1325 * rate;
-  const payAmt   = sell * 0.029  * rate;
+ const grossJPY = sell; // 入力値がすでに円
+  const ebayAmt  = sell * 0.1325;
+  const payAmt   = sell * 0.029;
   const shipAmt  = dship + (iship * rate);
   const net      = grossJPY - cost - ebayAmt - payAmt - shipAmt;
   const pct      = grossJPY > 0 ? (net / grossJPY) * 100 : 0;
@@ -1425,7 +1427,7 @@ function buildCSV() {
       COND_ID[it.condition] || '3000',
       it.qty || '1',
       it.startPrice || '',
-      it.price || '',
+      it.price ? (it.price / USD_RATE).toFixed(2) : '',
       'USD','Japan','Flat','International Priority Shipping'
     ].join(',');
   });
@@ -1473,7 +1475,21 @@ function copyHtml(id) {
 /* ════════════════════════════════════════
    INIT
 ════════════════════════════════════════ */
+// リアルタイム為替レート取得
+async function fetchRate() {
+  try {
+    const r = await fetch('/api/rate');
+    const data = await r.json();
+    if (data.rate) {
+      USD_RATE = data.rate;
+      document.getElementById('inRate').value = Math.round(USD_RATE);
+      saveStorage();
+    }
+  } catch(e) {}
+}
+
 loadStorage();
+fetchRate(); // 起動時に自動取得
 
 // Render restored items
 if (items.length) {
